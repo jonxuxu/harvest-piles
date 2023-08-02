@@ -17,7 +17,10 @@ class Config_Resnet:
         self.scheduler = "one_cycle_lr"
         if self.scheduler == "one_cycle_lr":
             self.lr = 1e-3
-        self.num_train_epochs = 15
+
+        self.optimizer = "madgrad"
+
+        self.num_train_epochs = 20
 
         self.batch_size = 32
 
@@ -30,16 +33,17 @@ class Config_Satlas:
         self.checkpoint_path = os.path.join(
             ROOT_PATH, "harvest-piles/weights/satlas-model-v1-highres.pth"
         )
+        self.output_path = "/atlas2/u/jonxuxu/harvest-piles/results/satlas.pth"
 
         self.wandb_project = "harvest-piles"
         self.wandb_group = "satlas"
 
         self.train_split = 0.8
 
-        self.critereon = "classification"
+        self.criterion = "classification"
 
-        self.optim = "adam"
-        if self.optim == "adam":
+        self.optimizer = "adam"
+        if self.optimizer == "adam":
             self.lr = 3e-4
             self.weight_decay = 0.1
 

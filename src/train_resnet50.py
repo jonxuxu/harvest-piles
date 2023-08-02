@@ -14,13 +14,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # -----------------
 # LOGGER
 # -----------------
-run = wandb.init(
-    # Set the project where this run will be logged
-    project=config.wandb_project,
-    group=config.wandb_group,
-    # Track hyperparameters and run metadata
-    config=vars(config),
-)
+LOGGING = True
+if LOGGING:
+    run = wandb.init(
+        # Set the project where this run will be logged
+        project=config.wandb_project,
+        group=config.wandb_group,
+        # Track hyperparameters and run metadata
+        config=vars(config),
+    )
 
 
 # -----------------
@@ -51,7 +53,7 @@ test_dataset = SkysatLabelled(
     transform,
 )
 
-train_dataloader = Dataloader(
+train_dataloader = DataLoader(
     train_dataset,
     batch_size=config.batch_size,
     shuffle=True,
@@ -107,7 +109,12 @@ params = [
     {"params": model.resnet50.layer4.parameters(), "lr": FOUND_LR / 2},
     {"params": model.resnet50.fc.parameters()},
 ]
-optimizer = torch.optim.Adam(params, lr=config.lr)
+if config.optimizer == "adam":
+    optimizer = torch.optim.Adam(params, lr=config.lr)
+elif config.optimizer == "madgrad":
+    from optim.madgrad import MADGRAD
+
+    optimizer = MADGRAD(params, lr=config.lr)
 
 STEPS_PER_EPOCH = len(train_dataloader)
 TOTAL_STEPS = config.num_train_epochs * STEPS_PER_EPOCH
@@ -210,12 +217,12 @@ for epoch in range(config.num_train_epochs):
     train_loss, train_acc = train(
         model, train_dataloader, optimizer, criterion, scheduler, device
     )
-    wandb.log({"train_loss": train_loss}, commit=False)
-    wandb.log({"train_acc": train_acc}, commit=False)
-
     valid_loss, valid_acc = evaluate(model, test_dataloader, criterion, device)
-    wandb.log({"valid_loss": valid_loss}, commit=False)
-    wandb.log({"valid_acc": valid_acc}, commit=False)
+    if LOGGING:
+        wandb.log({"train_loss": train_loss}, commit=False)
+        wandb.log({"train_acc": train_acc}, commit=False)
+        wandb.log({"valid_loss": valid_loss}, commit=False)
+        wandb.log({"valid_acc": valid_acc}, commit=False)
 
     if valid_loss < best_valid_loss:
         best_valid_loss = valid_loss
@@ -230,4 +237,5 @@ for epoch in range(config.num_train_epochs):
     print(f"\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:6.2f}%")
     print(f"\tValid Loss: {valid_loss:.3f} | Valid Acc: {valid_acc*100:6.2f}%")
 
-    wandb.log({"epoch": epoch}, commit=True)
+    if LOGGING:
+        wandb.log({"epoch": epoch}, commit=True)
