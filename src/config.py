@@ -11,5 +11,43 @@ class Config_Resnet:
         self.working_dir = os.path.join(ROOT_PATH, "harvest-piles")
         self.dataset_path = os.path.join(ROOT_PATH, "datasets")
 
-        self.one_cycle_lr = 1e-3
+        self.wandb_project = "harvest-piles"
+        self.wandb_group = "resnet50"
+
+        self.scheduler = "one_cycle_lr"
+        if self.scheduler == "one_cycle_lr":
+            self.lr = 1e-3
         self.num_train_epochs = 15
+
+        self.batch_size = 32
+
+
+class Config_Satlas:
+    def __init__(self):
+        # paths
+        self.working_dir = os.path.join(ROOT_PATH, "harvest-piles")
+        self.dataset_path = os.path.join(ROOT_PATH, "datasets")
+        self.checkpoint_path = os.path.join(
+            ROOT_PATH, "harvest-piles/weights/satlas-model-v1-highres.pth"
+        )
+
+        self.wandb_project = "harvest-piles"
+        self.wandb_group = "satlas"
+
+        self.train_split = 0.8
+
+        self.critereon = "classification"
+
+        self.optim = "adam"
+        if self.optim == "adam":
+            self.lr = 3e-4
+            self.weight_decay = 0.1
+
+        self.scheduler = "step"
+        if self.scheduler == "step":
+            self.lr_decay = 0.97
+            self.patience = 20
+
+        self.batch_size = 32
+        self.val_batch_size = 8
+        self.max_epochs = 100
