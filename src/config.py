@@ -66,7 +66,10 @@ class Swin_Pretrain:
         # paths
         self.working_dir = os.path.join(ROOT_PATH, "harvest-piles")
         self.dataset_path = os.path.join(ROOT_PATH, "datasets")
-        self.output_path = "/atlas2/u/jonxuxu/harvest-piles/results/swin_pretrain"
+        self.output_path = os.path.join(
+            "/atlas2/u/jonxuxu/harvest-piles/results/swin_pretrain",
+            "%s" % (datetime.datetime.now().strftime("%d-%m-%Y-%H-%M-%S")),
+        )
 
         self.wandb_project = "harvest-piles"
         self.wandb_group = "swin_pretrain"
@@ -74,7 +77,7 @@ class Swin_Pretrain:
         self.seed = 2023
 
         # adam optimizer
-        self.adam_lr = 5e-5
+        self.adam_lr = 1.5e-4
         self.adam_betas = (0.9, 0.999)
         self.adam_eps = 1e-08
         self.adam_weight_decay = 0.05
@@ -98,9 +101,8 @@ class Swin_Pretrain:
         self.max_grad_norm = 1.0
 
         # data
-        self.max_train_steps = 6000
-        self.lr_warmup_steps = 100
-        self.train_val_split = 0.8
-        self.mask_patch_size = 8
+        self.max_train_steps = 100000
+        self.train_val_split = 0.95
+        self.mask_patch_size = 32
         self.mask_ratio = 0.6
         self.model_patch_size = 4

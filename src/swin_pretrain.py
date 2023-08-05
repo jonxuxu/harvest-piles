@@ -27,6 +27,8 @@ from torchvision.transforms import (
     ToTensor,
     ToPILImage,
     Normalize,
+    RandomHorizontalFlip,
+    RandomVerticalFlip,
 )
 import matplotlib.pyplot as plt
 from accelerate import Accelerator
@@ -159,8 +161,8 @@ transforms = Compose(
     [
         ToPILImage(),
         Resize((model_config.image_size, model_config.image_size)),
-        # torchvision.transforms.RandomHorizontalFlip(),
-        # torchvision.transforms.RandomVerticalFlip(),
+        RandomHorizontalFlip(),
+        RandomVerticalFlip(),
         ToTensor(),
         Normalize(
             mean=[0.412, 0.368, 0.326], std=[0.110, 0.097, 0.098]
@@ -188,8 +190,12 @@ train_set, test_set = create_SkysatUnlabelled_dataset(
     config.train_val_split,
 )
 
-train_dl = DataLoader(train_set, batch_size=config.per_device_train_batch_size)
-test_dl = DataLoader(test_set, batch_size=config.per_device_eval_batch_size)
+train_dl = DataLoader(
+    train_set, num_workers=2, batch_size=config.per_device_train_batch_size
+)
+test_dl = DataLoader(
+    test_set, num_workers=2, batch_size=config.per_device_eval_batch_size
+)
 
 print("Train set batch size:", config.per_device_train_batch_size)
 print("Train set batch count:", len(train_dl))
