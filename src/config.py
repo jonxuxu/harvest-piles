@@ -14,11 +14,13 @@ class Config_Resnet:
         self.wandb_project = "harvest-piles"
         self.wandb_group = "resnet50"
 
+        self.seed = 2023
+
         self.scheduler = "one_cycle_lr"
         if self.scheduler == "one_cycle_lr":
             self.lr = 1e-3
 
-        self.optimizer = "madgrad"
+        self.optimizer = "adam"
 
         self.num_train_epochs = 20
 
@@ -38,6 +40,8 @@ class Config_Satlas:
         self.wandb_project = "harvest-piles"
         self.wandb_group = "satlas"
 
+        self.seed = 2023
+
         self.train_split = 0.8
 
         self.criterion = "classification"
@@ -47,11 +51,56 @@ class Config_Satlas:
             self.lr = 3e-4
             self.weight_decay = 0.1
 
-        self.scheduler = "step"
+        self.scheduler = "warmup_cosine"
         if self.scheduler == "step":
             self.lr_decay = 0.97
             self.patience = 20
 
-        self.batch_size = 32
+        self.batch_size = 16
         self.val_batch_size = 8
         self.max_epochs = 100
+
+
+class Swin_Pretrain:
+    def __init__(self):
+        # paths
+        self.working_dir = os.path.join(ROOT_PATH, "harvest-piles")
+        self.dataset_path = os.path.join(ROOT_PATH, "datasets")
+        self.output_path = "/atlas2/u/jonxuxu/harvest-piles/results/swin_pretrain"
+
+        self.wandb_project = "harvest-piles"
+        self.wandb_group = "swin_pretrain"
+
+        self.seed = 2023
+
+        # adam optimizer
+        self.adam_lr = 5e-5
+        self.adam_betas = (0.9, 0.999)
+        self.adam_eps = 1e-08
+        self.adam_weight_decay = 0.05
+
+        # lr scheduler
+        self.scheduler = "linear"
+        if self.scheduler == "linear":
+            self.start_factor = 0.33
+            self.lr_warmup_steps = 5
+        elif self.scheduler == "cosine_warmup":
+            self.lr_num_cycles = 100
+
+        # model train args
+        self.gradient_accumulation_steps = 1
+        self.mixed_precision = "fp16"
+
+        self.per_device_train_batch_size = 50
+        self.per_device_eval_batch_size = 5
+
+        self.gradient_accumulation_steps = 1
+        self.max_grad_norm = 1.0
+
+        # data
+        self.max_train_steps = 6000
+        self.lr_warmup_steps = 100
+        self.train_val_split = 0.8
+        self.mask_patch_size = 8
+        self.mask_ratio = 0.6
+        self.model_patch_size = 4

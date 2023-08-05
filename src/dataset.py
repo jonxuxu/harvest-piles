@@ -3,7 +3,6 @@ from torch.utils.data import Dataset
 import torch
 import os
 import cv2
-import torchvision
 
 
 class SkysatLabelled(Dataset):
@@ -43,11 +42,10 @@ class SkysatUnlabelled(Dataset):
 
 def create_SkysatUnlabelled_dataset(csv_file, image_dir, transform, train_split):
     df = pd.read_csv(csv_file, usecols=["filename"])
-    df.reset_index(inplace=True, drop=True)
-    examples = df["filename"]
-    train_size = int(len(examples) * train_split)
-    train_examples = examples[:train_size]
-    test_examples = examples[train_size:]
+    filename_list = df["filename"].tolist()
+    train_size = int(len(filename_list) * train_split)
+    train_examples = filename_list[:train_size]
+    test_examples = filename_list[train_size:]
 
     return SkysatUnlabelled(train_examples, image_dir, transform), SkysatUnlabelled(
         test_examples, image_dir, transform

@@ -4,12 +4,17 @@ import torch
 from torch.utils.data import DataLoader
 import torchvision
 import wandb
+import numpy as np
 
 from dataset import SkysatLabelled
 from config import Config_Resnet
 
 config = Config_Resnet()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Seed
+torch.manual_seed(config.seed)
+np.random.seed(config.seed)
 
 # -----------------
 # LOGGER

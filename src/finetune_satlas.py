@@ -5,6 +5,7 @@ import torchvision
 import torchvision.models.swin_transformer as swin
 import wandb
 import os
+import numpy as np
 
 from dataset import SkysatLabelled
 from config import Config_Satlas
@@ -12,11 +13,15 @@ from config import Config_Satlas
 config = Config_Satlas()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Seed
+torch.manual_seed(config.seed)
+np.random.seed(config.seed)
+
 # -----------------
 # LOGGER
 # -----------------
-LOGGING = False
-print("Init logger ", LOGGING)
+LOGGING = True
+print("Init logger", LOGGING)
 if LOGGING:
     run = wandb.init(
         project=config.wandb_project,
@@ -29,22 +34,22 @@ if LOGGING:
 # -----------------
 print("Loading datasets")
 
-# train_dataset, test_dataset = create_SkysatUnlabelled_dataset(
-#     os.path.join(config.dataset_path, "merged.csv"),
-#     os.path.join(config.dataset_path, "merged"),
-#     swin.Swin_V2_B_Weights.IMAGENET1K_V1.transforms,
-#     config.train_split,
-# )
+transform = torchvision.transforms.Compose(
+    [
+        torchvision.transforms.ToPILImage(),
+        swin.Swin_V2_B_Weights.IMAGENET1K_V1.transforms(),
+    ]
+)
 
 train_dataset = SkysatLabelled(
     os.path.join(config.dataset_path, "train.csv"),
     os.path.join(config.dataset_path, "merged"),
-    swin.Swin_V2_B_Weights.IMAGENET1K_V1.transforms,
+    transform,
 )
 test_dataset = SkysatLabelled(
     os.path.join(config.dataset_path, "test.csv"),
     os.path.join(config.dataset_path, "merged"),
-    swin.Swin_V2_B_Weights.IMAGENET1K_V1.transforms,
+    transform,
 )
 
 train_dataloader = DataLoader(
@@ -77,15 +82,15 @@ swin_state_dict = {
 }
 model.load_state_dict(swin_state_dict)
 
-# Freeze all layers except the last one
-for name, layer in model.named_children():
-    if name != "head":
-        layer.requires_grad = False
+# Freeze all layers
+for param in model.parameters():
+    param.requires_grad = False
 
-num_features = model.head.in_features
+# Add a FC layer
+num_features = model.head.out_features
 num_classes = 1
-model.head = torch.nn.Sequential(
-    torch.nn.Linear(num_features, num_classes), torch.nn.Sigmoid()
+model = torch.nn.Sequential(
+    model, torch.nn.Linear(num_features, num_classes), torch.nn.Sigmoid()
 )
 
 # -----------------
@@ -113,6 +118,11 @@ if config.scheduler == "step":
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=5, gamma=config.lr_decay
     )
+elif config.scheduler == "warmup_cosine":
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer, T_0=config.max_epochs
+    )
+
 
 # -----------------
 # ACCELERATOR
