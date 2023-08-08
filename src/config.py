@@ -94,7 +94,7 @@ class Swin_Pretrain:
         self.gradient_accumulation_steps = 1
         self.mixed_precision = "fp16"
 
-        self.per_device_train_batch_size = 50
+        self.per_device_train_batch_size = 70
         self.per_device_eval_batch_size = 5
 
         self.gradient_accumulation_steps = 1
@@ -106,3 +106,50 @@ class Swin_Pretrain:
         self.mask_patch_size = 32
         self.mask_ratio = 0.6
         self.model_patch_size = 4
+
+
+class Config_Swin_Finetune:
+    def __init__(self):
+        # paths
+        self.working_dir = os.path.join(ROOT_PATH, "harvest-piles")
+        self.dataset_path = os.path.join(ROOT_PATH, "datasets")
+        self.output_path = os.path.join(
+            "/atlas2/u/jonxuxu/harvest-piles/results/swin_finetune",
+            "%s" % (datetime.datetime.now().strftime("%d-%m-%Y-%H-%M-%S")),
+        )
+        self.pretrain_path = os.path.join(
+            ROOT_PATH, "harvest-piles/weights/swin_mae_pretrain"
+        )
+
+        self.wandb_project = "harvest-piles"
+        self.wandb_group = "swin_finetune"
+
+        self.seed = 2023
+
+        # adam optimizer
+        self.adam_lr = 1.5e-4
+        self.adam_betas = (0.9, 0.999)
+        self.adam_eps = 1e-08
+        self.adam_weight_decay = 0.05
+
+        # lr scheduler
+        self.scheduler = "linear"
+        if self.scheduler == "linear":
+            self.start_factor = 0.33
+            self.lr_warmup_steps = 5
+        elif self.scheduler == "cosine_warmup":
+            self.lr_num_cycles = 100
+
+        # model train args
+        self.gradient_accumulation_steps = 1
+        self.mixed_precision = "fp16"
+
+        self.per_device_train_batch_size = 70
+        self.per_device_eval_batch_size = 5
+
+        self.gradient_accumulation_steps = 1
+        self.max_grad_norm = 1.0
+
+        # data
+        self.max_train_steps = 10000
+        self.train_val_split = 0.80

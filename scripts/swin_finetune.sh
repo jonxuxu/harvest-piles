@@ -1,5 +1,5 @@
 #!/bin/bash
-JOBNAME="swin_pretrain"
+JOBNAME="swin_finetune"
 
 # slurm doesn't source .bashrc automatically
 source ~/.bashrc
@@ -12,7 +12,7 @@ VRAM=24
 
 echo "Number of GPUs: "${GPUS}
 # WRAP="WANDB__SERVICE_WAIT=300 accelerate launch  --multi_gpu --mixed_precision=fp16 --num_processes=${GPUS} swin_pretrain.py"
-WRAP="python swin_pretrain.py"
+WRAP="python swin_finetune.py"
 LOG_FOLDER="/atlas2/u/jonxuxu/slurm_logs"
 echo ${WRAP}
 echo "Log Folder:"${LOG_FOLDER}

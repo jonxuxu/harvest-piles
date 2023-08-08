@@ -85,9 +85,11 @@ class ResNet50(torch.nn.Module):
     def __init__(self, num_classes):
         super(ResNet50, self).__init__()
         self.resnet50 = torchvision.models.resnet50(weights=model_weights)
-        num_features = self.resnet50.fc.in_features
-        self.resnet50.fc = torch.nn.Sequential(
-            torch.nn.Linear(num_features, num_classes), torch.nn.Sigmoid()
+        num_features = self.resnet50.fc.out_features
+        self.resnet50 = torch.nn.Sequential(
+            self.resnet50,
+            torch.nn.Linear(num_features, num_classes),
+            torch.nn.Sigmoid(),
         )
 
     def forward(self, x):
@@ -193,9 +195,7 @@ def evaluate(model, iterator, criterion, device):
             y = y.to(device)
 
             y_pred = model(x)
-
             loss = criterion(y_pred, y)
-
             acc = binary_accuracy(y, y_pred)
 
             epoch_loss += loss.item()

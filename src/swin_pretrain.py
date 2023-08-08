@@ -77,14 +77,16 @@ accelerator = Accelerator(
 device = accelerator.device
 
 # Log on each process the small summary:
-print(f"Training/evaluation parameters:")
-print(config.__dict__)
+if accelerator.is_main_process:
+    print(f"Training/evaluation parameters:")
+    print(config.__dict__)
 
 # -----------------
 # LOGGER
 # -----------------
 process = psutil.Process()
-print(process.memory_info().rss / 1024**3, "GB memory used")
+if accelerator.is_main_process:
+    print(process.memory_info().rss / 1024**3, "GB memory used")
 
 accelerator.init_trackers(
     config.wandb_project,
@@ -141,12 +143,6 @@ class MaskGenerator:
         return torch.tensor(mask.flatten())
 
 
-def collate_fn(examples):
-    pixel_values = torch.stack([example["pixel_values"] for example in examples])
-    mask = torch.stack([example["mask"] for example in examples])
-    return {"pixel_values": pixel_values, "bool_masked_pos": mask}
-
-
 # create mask generator
 mask_generator = MaskGenerator(
     input_size=model_config.image_size,
@@ -182,9 +178,10 @@ def preprocess_images(x):
 
 
 # Initialize our dataset.
-print("Creating datasets...")
+if accelerator.is_main_process:
+    print("Creating datasets...")
 train_set, test_set = create_SkysatUnlabelled_dataset(
-    os.path.join(config.dataset_path, "train.csv"),
+    os.path.join(config.dataset_path, "merged.csv"),  # merged.csv
     os.path.join(config.dataset_path, "merged"),
     preprocess_images,
     config.train_val_split,
@@ -197,21 +194,24 @@ test_dl = DataLoader(
     test_set, num_workers=2, batch_size=config.per_device_eval_batch_size
 )
 
-print("Train set batch size:", config.per_device_train_batch_size)
-print("Train set batch count:", len(train_dl))
-print("Test set batch size:", config.per_device_eval_batch_size)
-print("Test set batch count:", len(test_dl))
+if accelerator.is_main_process:
+    print("Train set batch size:", config.per_device_train_batch_size)
+    print("Train set batch count:", len(train_dl))
+    print("Test set batch size:", config.per_device_eval_batch_size)
+    print("Test set batch count:", len(test_dl))
 
-print(process.memory_info().rss / 1024**3, "GB memory used")
+    print(process.memory_info().rss / 1024**3, "GB memory used")
 
 # -----------------
 # MODEL
 # -----------------
-print("Loading model:")
+if accelerator.is_main_process:
+    print("Loading model:")
 # extractor = AutoFeatureExtractor.from_pretrained("microsoft/swinv2-base-patch4-window8-256")
 model = Swinv2ForMaskedImageModeling.from_pretrained(pretrained_model_path)
 
-print(process.memory_info().rss / 1024**3, "GB memory used")
+if accelerator.is_main_process:
+    print(process.memory_info().rss / 1024**3, "GB memory used")
 
 # -----------------
 # OPTIMIZER
@@ -285,13 +285,15 @@ num_steps_per_epoch = math.ceil(len(train_dl) / config.gradient_accumulation_ste
 num_train_epochs = math.ceil(config.max_train_steps / num_steps_per_epoch)
 
 for epoch in range(num_train_epochs):
-    print(f"Epoch {epoch + 1}/{num_train_epochs}")
+    if accelerator.is_main_process:
+        print(f"Epoch {epoch + 1}/{num_train_epochs}")
     # TRAIN LOOP
     model.train()
     train_loss_list = []
     for batch_index, train_batch in enumerate(train_dl):
         with accelerator.accumulate(model):
-            print("Step: ", batch_index, end="\r")
+            if accelerator.is_main_process:
+                print("Step: ", batch_index, end="\r")
             # print(process.memory_info().rss / 1024 ** 3 , "GB memory used")
             optimizer.zero_grad()
             outputs = model(
@@ -366,7 +368,9 @@ for epoch in range(num_train_epochs):
                     )
                     axs[i, 1].axis("off")
                     axs[i, 2].imshow(
-                        reconstructions[i].transpose(1, 2, 0), vmin=-1, vmax=1
+                        reconstructions[i].transpose(1, 2, 0),
+                        vmin=-1,
+                        vmax=1,
                     )
                     axs[i, 2].axis("off")
                 wandb.log({"reconstructions": wandb.Image(fig)}, commit=False)
@@ -378,12 +382,16 @@ for epoch in range(num_train_epochs):
                 )
                 metric_dict = {f"val/{k}": v for k, v in zip(metric_names, metric)}
                 wandb.log(metric_dict, commit=False)
+                wandb.log({"val_loss": loss}, commit=False)
 
                 # Save model if we are better than the best model so far
                 if metric_dict["val/mse"] < best_val:
                     best_val = metric_dict["val/mse"]
-                    model.save_pretrained(
-                        os.path.join(config.output_path, "checkpoint_best")
+                    unwrapped_model = accelerator.unwrap_model(model)
+                    unwrapped_model.save_pretrained(
+                        os.path.join(config.output_path, "checkpoint_best"),
+                        is_main_process=accelerator.is_main_process,
+                        save_function=accelerator.save,
                     )
 
         wandb.log({"epoch": epoch}, commit=True)
@@ -392,4 +400,9 @@ for epoch in range(num_train_epochs):
     scheduler.step()
 
 accelerator.end_training()
-model.save_pretrained(os.path.join(config.output_path, "checkpoint_final"))
+unwrapped_model = accelerator.unwrap_model(model)
+unwrapped_model.save_pretrained(
+    os.path.join(config.output_path, "checkpoint_final"),
+    is_main_process=accelerator.is_main_process,
+    save_function=accelerator.save,
+)
