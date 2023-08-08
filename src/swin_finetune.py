@@ -170,7 +170,7 @@ if accelerator.is_main_process:
 criterion = torch.nn.BCEWithLogitsLoss()
 
 
-def binary_accuracy(labels, logits):
+def binary_accuracy(logits, labels):
     assert labels.size() == logits.size()
     predicted_probs = torch.sigmoid(logits)
     preds = (predicted_probs > 0.5).float()
@@ -192,13 +192,6 @@ if config.scheduler == "linear":
         optimizer,
         start_factor=config.start_factor,
         total_iters=config.lr_warmup_steps,
-    )
-elif config.scheduler == "cosine_warm":
-    scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
-        optimizer,
-        num_warmup_steps=config.lr_warmup_steps,
-        num_training_steps=config.max_train_steps,
-        num_cycles=config.lr_num_cycles,
     )
 elif config.scheduler == "cosine":
     scheduler = get_cosine_schedule_with_warmup(
@@ -264,9 +257,6 @@ for epoch in range(num_train_epochs):
             model.eval()
 
             for batch_index, val_batch in enumerate(test_dl):
-                # Our batch size is the entire test dataset, we should not have more than 1 batch
-                if batch_index != 0:
-                    break
                 # Log full validation images
                 preds = model(val_batch[0])
 
