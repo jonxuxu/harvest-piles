@@ -5,7 +5,6 @@ import psutil
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-import torchvision
 from torch.optim.lr_scheduler import LinearLR
 from torchvision.transforms import (
     Compose,
@@ -16,7 +15,6 @@ from torchvision.transforms import (
     RandomHorizontalFlip,
     RandomVerticalFlip,
 )
-import matplotlib.pyplot as plt
 from accelerate import Accelerator
 
 from transformers import AutoModel
@@ -94,10 +92,7 @@ class SwinClassifier(torch.nn.Module):
         self.swin_encoder = AutoModel.from_pretrained(config.pretrain_path)
         self.swin_encoder.requires_grad_(False)
 
-        self.classifier = torch.nn.Sequential(
-            torch.nn.Linear(self.swin_encoder.num_features, num_classes),
-            torch.nn.Sigmoid(),
-        )
+        self.classifier = torch.nn.Linear(self.swin_encoder.num_features, num_classes)
 
     def forward(self, x):
         outputs = self.swin_encoder(x)
@@ -174,6 +169,16 @@ if accelerator.is_main_process:
 # -----------------
 criterion = torch.nn.BCEWithLogitsLoss()
 
+
+def binary_accuracy(labels, logits):
+    assert labels.size() == logits.size()
+    predicted_probs = torch.sigmoid(logits)
+    preds = (predicted_probs > 0.5).float()
+    correct_predictions = (preds == labels).float()
+    accuracy = correct_predictions.mean()
+    return accuracy.item()
+
+
 optimizer = torch.optim.AdamW(
     params=model.parameters(),
     lr=config.adam_lr,
@@ -225,7 +230,8 @@ for epoch in range(num_train_epochs):
         print(f"Epoch {epoch + 1}/{num_train_epochs}")
     # TRAIN LOOP
     model.train()
-    train_loss_list = []
+    train_epoch_loss = 0
+    train_epoch_acc = 0
     for batch_index, train_batch in enumerate(train_dl):
         with accelerator.accumulate(model):
             if accelerator.is_main_process:
@@ -234,24 +240,29 @@ for epoch in range(num_train_epochs):
             optimizer.zero_grad()
             preds = model(train_batch[0])
             loss = criterion(preds, train_batch[1])
+            acc = binary_accuracy(preds, train_batch[1])
+
             accelerator.backward(loss)
-            train_loss_list.append(loss.item())  # do not track trace for this
+            train_epoch_loss += loss.item()  # do not track trace for this
+            train_epoch_acc += acc
+
             accelerator.clip_grad_norm_(model.parameters(), config.max_grad_norm)
             optimizer.step()
 
             step_count += 1
             if step_count >= config.max_train_steps:
                 break
+    train_epoch_loss /= len(train_dl)
+    train_epoch_acc /= len(train_dl)
 
     accelerator.wait_for_everyone()
     if accelerator.is_main_process:
-        mean_loss = np.mean(train_loss_list)
-        wandb.log({"train_loss": mean_loss}, commit=False)
-        wandb.log({"epoch": epoch}, commit=False)
-
         # VALIDATION LOOP
         with torch.no_grad():
+            val_epoch_loss = 0
+            val_epoch_acc = 0
             model.eval()
+
             for batch_index, val_batch in enumerate(test_dl):
                 # Our batch size is the entire test dataset, we should not have more than 1 batch
                 if batch_index != 0:
@@ -260,20 +271,26 @@ for epoch in range(num_train_epochs):
                 preds = model(val_batch[0])
 
                 # Log evaluation metrics
-                loss = criterion(preds, train_batch[1])
-                acc = binary_accuracy(preds, train_batch[1])
-
-                wandb.log({"val_loss": loss}, commit=False)
+                loss = criterion(preds, val_batch[1])
+                acc = binary_accuracy(preds, val_batch[1])
+                val_epoch_loss += loss.item()
+                val_epoch_acc += acc
 
                 # Save model if we are better than the best model so far
                 if acc > best_val:
                     best_val = acc
                     unwrapped_model = accelerator.unwrap_model(model)
-                    unwrapped_model.save_pretrained(
-                        os.path.join(config.output_path, "checkpoint_best"),
-                        is_main_process=accelerator.is_main_process,
-                        save_function=accelerator.save,
+                    torch.save(
+                        unwrapped_model.state_dict(),
+                        os.path.join(config.output_path, "model_best.pth"),
                     )
+            val_epoch_loss /= len(test_dl)
+            val_epoch_acc /= len(test_dl)
+
+        wandb.log({"train/loss": train_epoch_loss}, commit=False)
+        wandb.log({"train/acc": train_epoch_acc}, commit=False)
+        wandb.log({"val/loss": val_epoch_loss}, commit=False)
+        wandb.log({"val/acc": val_epoch_acc}, commit=False)
 
         wandb.log({"epoch": epoch}, commit=True)
 
@@ -282,8 +299,6 @@ for epoch in range(num_train_epochs):
 
 accelerator.end_training()
 unwrapped_model = accelerator.unwrap_model(model)
-unwrapped_model.save_pretrained(
-    os.path.join(config.output_path, "checkpoint_final"),
-    is_main_process=accelerator.is_main_process,
-    save_function=accelerator.save,
+torch.save(
+    unwrapped_model.state_dict(), os.path.join(config.output_path, "model_final.pth")
 )

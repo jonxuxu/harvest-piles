@@ -127,7 +127,7 @@ class Config_Swin_Finetune:
         self.seed = 2023
 
         # adam optimizer
-        self.adam_lr = 1.5e-4
+        self.adam_lr = 3e-4
         self.adam_betas = (0.9, 0.999)
         self.adam_eps = 1e-08
         self.adam_weight_decay = 0.05
@@ -144,12 +144,12 @@ class Config_Swin_Finetune:
         self.gradient_accumulation_steps = 1
         self.mixed_precision = "fp16"
 
-        self.per_device_train_batch_size = 70
-        self.per_device_eval_batch_size = 5
+        self.per_device_train_batch_size = 80
+        self.per_device_eval_batch_size = 30
 
         self.gradient_accumulation_steps = 1
         self.max_grad_norm = 1.0
 
         # data
-        self.max_train_steps = 10000
+        self.max_train_steps = 5000
         self.train_val_split = 0.80
