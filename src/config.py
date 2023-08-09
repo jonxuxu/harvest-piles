@@ -33,18 +33,18 @@ class Config_Satlas:
         self.working_dir = os.path.join(ROOT_PATH, "harvest-piles")
         self.dataset_path = os.path.join(ROOT_PATH, "datasets")
         self.checkpoint_path = os.path.join(
-            ROOT_PATH, "harvest-piles/weights/satlas-model-v1-highres.pth"
+            self.working_dir, "weights/satlas-model-v1-highres.pth"
         )
+        self.trained_path = os.path.join(self.working_dir, "weights/satlas-trained.pth")
         self.output_path = "/atlas2/u/jonxuxu/harvest-piles/results/satlas.pth"
 
         self.wandb_project = "harvest-piles"
         self.wandb_group = "satlas"
 
         self.seed = 2023
-
         self.train_split = 0.8
-
         self.criterion = "classification"
+        self.load_trained = True
 
         self.optimizer = "adam"
         if self.optimizer == "adam":

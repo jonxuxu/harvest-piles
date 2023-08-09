@@ -3,6 +3,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import torchvision
 import torchvision.models.swin_transformer as swin
+from torchmetrics import Accuracy, F1Score, AUROC, Precision, Recall
+
 import wandb
 import os
 import numpy as np
@@ -92,12 +94,20 @@ num_classes = 1
 model = torch.nn.Sequential(
     model, torch.nn.Linear(num_features, num_classes), torch.nn.Sigmoid()
 )
+if config.load_trained:
+    model.load_state_dict(torch.load(config.trained_path))
 
 # -----------------
 # CRITERION
 # -----------------
 if config.criterion == "classification":
     criterion = nn.BCEWithLogitsLoss()
+
+accuracy = Accuracy(task="binary").to(device)
+f1_score = F1Score(task="binary").to(device)
+auroc = AUROC(task="binary").to(device)
+precision = Precision(task="binary").to(device)
+recall = Recall(task="binary").to(device)
 
 
 def binary_accuracy(y_true, y_prob):
@@ -171,51 +181,49 @@ def train(model, iterator, optimizer, criterion, scheduler, device):
 
 
 def evaluate(model, iterator, criterion, device):
-    epoch_loss = 0
-    epoch_accuracy = 0
-
     model.eval()
 
     with torch.no_grad():
-        for x, y, _ in iterator:
-            x = x.to(device)
-            y = y.to(device)
+        x, y, _ = next(iter(iterator))
+        x = x.to(device)
+        y = y.to(device)
 
-            y_pred = model(x)
+        logits = model(x)
+        loss = criterion(logits, y)
+        preds = (logits > 0.5).float()
 
-            loss = criterion(y_pred, y)
+        evals = {
+            "acc": accuracy(preds, y),
+            "f1": f1_score(preds, y),
+            "auroc": auroc(preds, y),
+            "precision": precision(preds, y),
+            "recall": recall(preds, y),
+        }
 
-            acc = binary_accuracy(y, y_pred)
-
-            epoch_loss += loss.item()
-            epoch_accuracy += acc
-
-    epoch_loss /= len(iterator)
-    epoch_accuracy /= len(iterator)
-
-    return epoch_loss, epoch_accuracy
+    return loss.item(), evals
 
 
 best_valid_loss = float("inf")
 
 for epoch in range(config.max_epochs):
-    train_loss, train_acc = train(
-        model, train_dataloader, optimizer, criterion, scheduler, device
-    )
-    valid_loss, valid_acc = evaluate(model, test_dataloader, criterion, device)
+    # train_loss, train_acc = train(
+    #     model, train_dataloader, optimizer, criterion, scheduler, device
+    # )
+    valid_loss, val_metrics = evaluate(model, test_dataloader, criterion, device)
     if LOGGING:
-        wandb.log({"train_loss": train_loss}, commit=False)
-        wandb.log({"train_acc": train_acc}, commit=False)
-        wandb.log({"valid_loss": valid_loss}, commit=False)
-        wandb.log({"valid_acc": valid_acc}, commit=False)
+        # wandb.log({"train_loss": train_loss}, commit=False)
+        # wandb.log({"train_acc": train_acc}, commit=False)
+        wandb.log({"val": val_metrics}, commit=False)
 
-    if valid_loss < best_valid_loss:
-        best_valid_loss = valid_loss
-        torch.save(model.state_dict(), config.output_path)
+    # if valid_loss < best_valid_loss:
+    #     best_valid_loss = valid_loss
+    #     torch.save(model.state_dict(), config.output_path)
 
     print(f"Epoch: {epoch+1:02}")
-    print(f"\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:6.2f}%")
-    print(f"\tValid Loss: {valid_loss:.3f} | Valid Acc: {valid_acc*100:6.2f}%")
+    # print(f"\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:6.2f}%")
+    # print(f"\tValid Loss: {valid_loss:.3f} | Valid Acc: {valid_acc*100:6.2f}%")
 
     if LOGGING:
         wandb.log({"epoch": epoch}, commit=True)
+
+    break
