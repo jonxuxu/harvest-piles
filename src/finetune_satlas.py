@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import LinearLR
 import torchvision
 import torchvision.models.swin_transformer as swin
 from torchmetrics import Accuracy, F1Score, AUROC, Precision, Recall
@@ -94,6 +95,7 @@ num_classes = 1
 model = torch.nn.Sequential(
     model, torch.nn.Linear(num_features, num_classes), torch.nn.Sigmoid()
 )
+# Load checkpoint
 if config.load_trained:
     model.load_state_dict(torch.load(config.trained_path))
 
@@ -108,13 +110,6 @@ f1_score = F1Score(task="binary").to(device)
 auroc = AUROC(task="binary").to(device)
 precision = Precision(task="binary").to(device)
 recall = Recall(task="binary").to(device)
-
-
-def binary_accuracy(y_true, y_prob):
-    assert y_true.size() == y_prob.size()
-    y_prob = y_prob > 0.5
-    return (y_true == y_prob).sum().item() / y_true.size(0)
-
 
 # -----------------
 # OPTIMIZER, SCHEDULER
@@ -132,7 +127,12 @@ elif config.scheduler == "warmup_cosine":
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
         optimizer, T_0=config.max_epochs
     )
-
+elif config.scheduler == "linear":
+    scheduler = LinearLR(
+        optimizer,
+        start_factor=config.start_factor,
+        total_iters=config.lr_warmup_steps,
+    )
 
 # -----------------
 # ACCELERATOR
@@ -149,7 +149,6 @@ print("Begin train")
 
 def train(model, iterator, optimizer, criterion, scheduler, device):
     epoch_loss = 0
-    epoch_accuracy = 0
 
     model.train()
     for x, y, _ in iterator:
@@ -161,7 +160,6 @@ def train(model, iterator, optimizer, criterion, scheduler, device):
         y_pred = model(x)
 
         loss = criterion(y_pred, y)
-        acc = binary_accuracy(y, y_pred)
 
         loss.backward()
         optimizer.step()
@@ -169,15 +167,13 @@ def train(model, iterator, optimizer, criterion, scheduler, device):
             scheduler.step()
 
         epoch_loss += loss.item()
-        epoch_accuracy += acc
 
     if config.scheduler != "one_cycle_lr":
         scheduler.step()
 
     epoch_loss /= len(iterator)
-    epoch_accuracy /= len(iterator)
 
-    return epoch_loss, epoch_accuracy
+    return epoch_loss
 
 
 def evaluate(model, iterator, criterion, device):
@@ -203,27 +199,20 @@ def evaluate(model, iterator, criterion, device):
     return loss.item(), evals
 
 
-best_valid_loss = float("inf")
+best_accuracy = 0
 
 for epoch in range(config.max_epochs):
-    # train_loss, train_acc = train(
-    #     model, train_dataloader, optimizer, criterion, scheduler, device
-    # )
+    train_loss = train(model, train_dataloader, optimizer, criterion, scheduler, device)
     valid_loss, val_metrics = evaluate(model, test_dataloader, criterion, device)
     if LOGGING:
-        # wandb.log({"train_loss": train_loss}, commit=False)
-        # wandb.log({"train_acc": train_acc}, commit=False)
+        wandb.log({"train_loss": train_loss}, commit=False)
         wandb.log({"val": val_metrics}, commit=False)
 
-    # if valid_loss < best_valid_loss:
-    #     best_valid_loss = valid_loss
-    #     torch.save(model.state_dict(), config.output_path)
+    if val_metrics["acc"] > best_accuracy:
+        best_accuracy = val_metrics["acc"]
+        torch.save(model.state_dict(), config.output_path)
 
     print(f"Epoch: {epoch+1:02}")
-    # print(f"\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:6.2f}%")
-    # print(f"\tValid Loss: {valid_loss:.3f} | Valid Acc: {valid_acc*100:6.2f}%")
 
     if LOGGING:
         wandb.log({"epoch": epoch}, commit=True)
-
-    break

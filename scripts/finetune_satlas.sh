@@ -8,7 +8,7 @@ mamba activate harvest
 cd /atlas2/u/jonxuxu/harvest-piles/src
 GPUS=1
 echo "Number of GPUs: "${GPUS}
-WRAP="python finetune_satlas.py"
+WRAP="WANDB__SERVICE_WAIT=300 python finetune_satlas.py"
 LOG_FOLDER="/atlas2/u/jonxuxu/slurm_logs"
 echo ${WRAP}
 echo "Log Folder:"${LOG_FOLDER}

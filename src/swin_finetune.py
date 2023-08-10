@@ -3,6 +3,7 @@ import math
 import wandb
 import psutil
 import numpy as np
+from collections import defaultdict
 import torch
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import LinearLR
@@ -15,14 +16,13 @@ from torchvision.transforms import (
     RandomHorizontalFlip,
     RandomVerticalFlip,
 )
+from torchmetrics import Accuracy, F1Score, AUROC, Precision, Recall
 from accelerate import Accelerator
-
 from transformers import AutoModel
 from transformers.optimization import (
     get_cosine_schedule_with_warmup,
     get_cosine_with_hard_restarts_schedule_with_warmup,
 )
-
 from transformers.utils import check_min_version
 
 from config import Config_Swin_Finetune
@@ -102,6 +102,11 @@ class SwinClassifier(torch.nn.Module):
 
 out_classes = 1
 model = SwinClassifier(config, out_classes)
+
+# If loading from a checkpoint, set model weights here
+if config.load_trained:
+    model.load_state_dict(torch.load(config.trained_path))
+
 swin_config = model.swin_encoder.config
 
 if accelerator.is_main_process:
@@ -169,15 +174,11 @@ if accelerator.is_main_process:
 # -----------------
 criterion = torch.nn.BCEWithLogitsLoss()
 
-
-def binary_accuracy(logits, labels):
-    assert labels.size() == logits.size()
-    predicted_probs = torch.sigmoid(logits)
-    preds = (predicted_probs > 0.5).float()
-    correct_predictions = (preds == labels).float()
-    accuracy = correct_predictions.mean()
-    return accuracy.item()
-
+accuracy = Accuracy(task="binary")
+f1_score = F1Score(task="binary")
+auroc = AUROC(task="binary")
+precision = Precision(task="binary")
+recall = Recall(task="binary")
 
 optimizer = torch.optim.AdamW(
     params=model.parameters(),
@@ -204,14 +205,18 @@ elif config.scheduler == "cosine":
 # -----------------
 # ACCELERATOR
 # -----------------
-model, optimizer, criterion, train_dl, test_dl, scheduler = accelerator.prepare(
-    model, optimizer, criterion, train_dl, test_dl, scheduler
+model, optimizer, train_dl, test_dl, scheduler = accelerator.prepare(
+    model, optimizer, train_dl, test_dl, scheduler
 )
+accuracy, f1_score, auroc, precision, recall = accelerator.prepare(
+    accuracy, f1_score, auroc, precision, recall
+)
+
 
 # -----------------
 # TRAINING
 # -----------------
-best_val = -1
+best_val = 0
 step_count = 0
 
 num_steps_per_epoch = math.ceil(len(train_dl) / config.gradient_accumulation_steps)
@@ -224,20 +229,17 @@ for epoch in range(num_train_epochs):
     # TRAIN LOOP
     model.train()
     train_epoch_loss = 0
-    train_epoch_acc = 0
     for batch_index, train_batch in enumerate(train_dl):
         with accelerator.accumulate(model):
             if accelerator.is_main_process:
                 print("Step: ", batch_index, end="\r")
             # print(process.memory_info().rss / 1024 ** 3 , "GB memory used")
             optimizer.zero_grad()
-            preds = model(train_batch[0])
-            loss = criterion(preds, train_batch[1])
-            acc = binary_accuracy(preds, train_batch[1])
+            logits = model(train_batch[0])
+            loss = criterion(logits, train_batch[1])
 
             accelerator.backward(loss)
             train_epoch_loss += loss.item()  # do not track trace for this
-            train_epoch_acc += acc
 
             accelerator.clip_grad_norm_(model.parameters(), config.max_grad_norm)
             optimizer.step()
@@ -246,41 +248,48 @@ for epoch in range(num_train_epochs):
             if step_count >= config.max_train_steps:
                 break
     train_epoch_loss /= len(train_dl)
-    train_epoch_acc /= len(train_dl)
 
     accelerator.wait_for_everyone()
     if accelerator.is_main_process:
         # VALIDATION LOOP
         with torch.no_grad():
             val_epoch_loss = 0
-            val_epoch_acc = 0
+            sum_metrics = defaultdict(float)
             model.eval()
 
             for batch_index, val_batch in enumerate(test_dl):
-                # Log full validation images
-                preds = model(val_batch[0])
-
+                y = val_batch[1]
                 # Log evaluation metrics
-                loss = criterion(preds, val_batch[1])
-                acc = binary_accuracy(preds, val_batch[1])
+                logits = model(val_batch[0])
+                loss = criterion(logits, y)
                 val_epoch_loss += loss.item()
-                val_epoch_acc += acc
 
-                # Save model if we are better than the best model so far
-                if acc > best_val:
-                    best_val = acc
-                    unwrapped_model = accelerator.unwrap_model(model)
-                    torch.save(
-                        unwrapped_model.state_dict(),
-                        os.path.join(config.output_path, "model_best.pth"),
-                    )
+                predicted_probs = torch.sigmoid(logits)
+                preds = (predicted_probs > 0.5).float()
+                evals = {
+                    "acc": accuracy(preds, y),
+                    "f1": f1_score(preds, y),
+                    "auroc": auroc(preds, y),
+                    "precision": precision(preds, y),
+                    "recall": recall(preds, y),
+                }
+                for k, v in evals.items():
+                    sum_metrics[k] += v
+
             val_epoch_loss /= len(test_dl)
-            val_epoch_acc /= len(test_dl)
+            # Save model if we are better than the best model so far
+            avg_metrics = {k: v / len(test_dl) for k, v in sum_metrics.items()}
+            if avg_metrics["acc"] > best_val:
+                best_val = avg_metrics["acc"]
+                unwrapped_model = accelerator.unwrap_model(model)
+                torch.save(
+                    unwrapped_model.state_dict(),
+                    os.path.join(config.output_path, "model_best.pth"),
+                )
 
-        wandb.log({"train/loss": train_epoch_loss}, commit=False)
-        wandb.log({"train/acc": train_epoch_acc}, commit=False)
-        wandb.log({"val/loss": val_epoch_loss}, commit=False)
-        wandb.log({"val/acc": val_epoch_acc}, commit=False)
+        wandb.log({"train.loss": train_epoch_loss}, commit=False)
+        wandb.log({"val": avg_metrics}, commit=False)
+        wandb.log({"val.loss": val_epoch_loss}, commit=False)
 
         wandb.log({"epoch": epoch}, commit=True)
 

@@ -48,16 +48,19 @@ class Config_Satlas:
 
         self.optimizer = "adam"
         if self.optimizer == "adam":
-            self.lr = 3e-4
+            self.lr = 3e-5  # late stage lr
             self.weight_decay = 0.1
 
         self.scheduler = "warmup_cosine"
         if self.scheduler == "step":
             self.lr_decay = 0.97
             self.patience = 20
+        elif self.scheduler == "linear":
+            self.start_factor = 0.33
+            self.lr_warmup_steps = 5
 
-        self.batch_size = 16
-        self.val_batch_size = 8
+        self.batch_size = 50
+        self.val_batch_size = 460
         self.max_epochs = 100
 
 
@@ -120,14 +123,18 @@ class Config_Swin_Finetune:
         self.pretrain_path = os.path.join(
             ROOT_PATH, "harvest-piles/weights/swin_mae_pretrain"
         )
+        self.trained_path = os.path.join(
+            ROOT_PATH, "harvest-piles/weights/swin_mae_finetune/model_best.pth"
+        )
 
         self.wandb_project = "harvest-piles"
         self.wandb_group = "swin_finetune"
 
         self.seed = 2023
+        self.load_trained = True
 
         # adam optimizer
-        self.adam_lr = 3e-3
+        self.adam_lr = 3e-4  # 1e-3 for train
         self.adam_betas = (0.9, 0.999)
         self.adam_eps = 1e-08
         self.adam_weight_decay = 0.05
@@ -145,7 +152,7 @@ class Config_Swin_Finetune:
         self.mixed_precision = "fp16"
 
         self.per_device_train_batch_size = 50
-        self.per_device_eval_batch_size = 220
+        self.per_device_eval_batch_size = 500
 
         self.gradient_accumulation_steps = 1
         self.max_grad_norm = 1.0
