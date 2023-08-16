@@ -48,7 +48,7 @@ class Config_Satlas:
 
         self.optimizer = "adam"
         if self.optimizer == "adam":
-            self.lr = 3e-5  # late stage lr
+            self.lr = 3e-4  # late stage lr
             self.weight_decay = 0.1
 
         self.scheduler = "warmup_cosine"
@@ -100,7 +100,6 @@ class Swin_Pretrain:
         self.per_device_train_batch_size = 70
         self.per_device_eval_batch_size = 5
 
-        self.gradient_accumulation_steps = 1
         self.max_grad_norm = 1.0
 
         # data
@@ -134,7 +133,7 @@ class Config_Swin_Finetune:
         self.load_trained = True
 
         # adam optimizer
-        self.adam_lr = 3e-4  # 1e-3 for train
+        self.adam_lr = 1e-4  # 1e-3 for train
         self.adam_betas = (0.9, 0.999)
         self.adam_eps = 1e-08
         self.adam_weight_decay = 0.05
@@ -152,7 +151,7 @@ class Config_Swin_Finetune:
         self.mixed_precision = "fp16"
 
         self.per_device_train_batch_size = 50
-        self.per_device_eval_batch_size = 500
+        self.per_device_eval_batch_size = 550
 
         self.gradient_accumulation_steps = 1
         self.max_grad_norm = 1.0

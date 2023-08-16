@@ -86,8 +86,8 @@ swin_state_dict = {
 model.load_state_dict(swin_state_dict)
 
 # Freeze all layers
-for param in model.parameters():
-    param.requires_grad = False
+# for param in model.parameters():
+#     param.requires_grad = False
 
 # Add a FC layer
 num_features = model.head.out_features

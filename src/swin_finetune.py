@@ -90,7 +90,7 @@ class SwinClassifier(torch.nn.Module):
         super(SwinClassifier, self).__init__()
 
         self.swin_encoder = AutoModel.from_pretrained(config.pretrain_path)
-        self.swin_encoder.requires_grad_(False)
+        # self.swin_encoder.requires_grad_(False)
 
         self.classifier = torch.nn.Linear(self.swin_encoder.num_features, num_classes)
 
@@ -230,6 +230,8 @@ for epoch in range(num_train_epochs):
     model.train()
     train_epoch_loss = 0
     for batch_index, train_batch in enumerate(train_dl):
+        print(len(train_dl))
+        break
         with accelerator.accumulate(model):
             if accelerator.is_main_process:
                 print("Step: ", batch_index, end="\r")

@@ -8,7 +8,7 @@ cd /atlas2/u/jonxuxu/harvest-piles/src
 
 GPUS=1
 MEM=16
-VRAM=12
+VRAM=24
 
 echo "Number of GPUs: "${GPUS}
 # WRAP="WANDB__SERVICE_WAIT=300 accelerate launch  --multi_gpu --mixed_precision=fp16 --num_processes=${GPUS} swin_pretrain.py"
