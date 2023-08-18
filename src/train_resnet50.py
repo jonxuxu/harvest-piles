@@ -5,35 +5,67 @@ from torch.utils.data import DataLoader
 import torchvision
 import wandb
 import numpy as np
+from torchmetrics import Accuracy, F1Score, AUROC, Precision, Recall
+from accelerate import Accelerator
+from collections import defaultdict
 
 from dataset import SkysatLabelled
 from config import Config_Resnet
 
+# -----------------
+# CONFIG
+# -----------------
+
 config = Config_Resnet()
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Seed
 torch.manual_seed(config.seed)
 np.random.seed(config.seed)
 
-# -----------------
-# LOGGER
-# -----------------
-LOGGING = True
+
+accelerator = Accelerator(
+    log_with="wandb",
+    mixed_precision=config.mixed_precision,
+)
+device = accelerator.device
+
+# Log on each process the small summary:
+if accelerator.is_main_process:
+    print(f"Training/evaluation parameters:")
+    print(config.__dict__)
+
+accelerator.init_trackers(
+    config.wandb_project,
+    config=config,
+    init_kwargs={
+        "wandb": {
+            "group": config.wandb_group,
+            "reinit": True,
+            "dir": os.path.join(config.working_dir),
+        }
+    },
+)
+
+LOGGING = False
 if LOGGING:
-    run = wandb.init(
-        # Set the project where this run will be logged
-        project=config.wandb_project,
-        group=config.wandb_group,
-        # Track hyperparameters and run metadata
-        config=vars(config),
+    accelerator.init_trackers(
+        config.wandb_project,
+        config=config,
+        init_kwargs={
+            "wandb": {
+                "group": config.wandb_group,
+                "reinit": True,
+                "dir": os.path.join(config.working_dir),
+            }
+        },
     )
 
 
 # -----------------
 # DATASET
 # -----------------
-print("Loading datasets")
+if accelerator.is_main_process:
+    print("Loading datasets")
 transform = torchvision.transforms.Compose(
     [
         torchvision.transforms.ToPILImage(),
@@ -76,7 +108,8 @@ test_dataloader = DataLoader(
 # -----------------
 # MODEL
 # -----------------
-print("Setting model")
+if accelerator.is_main_process:
+    print("Loading model")
 
 model_weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V2
 
@@ -86,14 +119,14 @@ class ResNet50(torch.nn.Module):
         super(ResNet50, self).__init__()
         self.resnet50 = torchvision.models.resnet50(weights=model_weights)
         num_features = self.resnet50.fc.out_features
-        self.resnet50 = torch.nn.Sequential(
-            self.resnet50,
+        self.fc = torch.nn.Sequential(
             torch.nn.Linear(num_features, num_classes),
             torch.nn.Sigmoid(),
         )
 
     def forward(self, x):
-        return self.resnet50(x)
+        logits = self.resnet50(x)
+        return self.fc(logits)
 
 
 out_classes = 1
@@ -104,8 +137,15 @@ model = ResNet50(out_classes)
 # -----------------
 criterion = torch.nn.BCELoss()
 
+accuracy = Accuracy(task="binary")
+f1_score = F1Score(task="binary")
+auroc = AUROC(task="binary")
+precision = Precision(task="binary")
+recall = Recall(task="binary")
+
 FOUND_LR = config.lr  # For OneCycleLR
 # FOUND_LR = 0.001 # For ExponentialLR
+
 
 params = [
     {"params": model.resnet50.conv1.parameters(), "lr": FOUND_LR / 10},
@@ -135,24 +175,23 @@ if config.scheduler == "one_cycle_lr":
 # -----------------
 # ACCELERATOR
 # -----------------
-model = model.to(device)
-criterion = criterion.to(device)
+model, optimizer, train_dataloader, test_dataloader, scheduler = accelerator.prepare(
+    model, optimizer, train_dataloader, test_dataloader, scheduler
+)
+accuracy, f1_score, auroc, precision, recall = accelerator.prepare(
+    accuracy, f1_score, auroc, precision, recall
+)
 
 # -----------------
 # TRAIN
 # -----------------
-print("Begin train")
-
-
-def binary_accuracy(y_true, y_prob):
-    assert y_true.size() == y_prob.size()
-    y_prob = y_prob > 0.5
-    return (y_true == y_prob).sum().item() / y_true.size(0)
+if accelerator.is_main_process:
+    print("Begin train")
 
 
 def train(model, iterator, optimizer, criterion, scheduler, device):
     epoch_loss = 0
-    epoch_accuracy = 0
+    sum_metrics = defaultdict(float)
 
     model.train()
     for x, y, _ in iterator:
@@ -161,10 +200,17 @@ def train(model, iterator, optimizer, criterion, scheduler, device):
 
         optimizer.zero_grad()
 
-        y_pred = model(x)
-
-        loss = criterion(y_pred, y)
-        acc = binary_accuracy(y, y_pred)
+        pred = model(x)
+        loss = criterion(pred, y)
+        evals = {
+            "acc": accuracy(pred, y),
+            "f1": f1_score(pred, y),
+            "auroc": auroc(pred, y),
+            "precision": precision(pred, y),
+            "recall": recall(pred, y),
+        }
+        for k, v in evals.items():
+            sum_metrics[k] += v
 
         loss.backward()
         optimizer.step()
@@ -172,20 +218,19 @@ def train(model, iterator, optimizer, criterion, scheduler, device):
             scheduler.step()
 
         epoch_loss += loss.item()
-        epoch_accuracy += acc
 
     if config.scheduler != "one_cycle_lr":
         scheduler.step()
 
     epoch_loss /= len(iterator)
-    epoch_accuracy /= len(iterator)
+    avg_metrics = {k: v / len(iterator) for k, v in sum_metrics.items()}
 
-    return epoch_loss, epoch_accuracy
+    return epoch_loss, avg_metrics
 
 
 def evaluate(model, iterator, criterion, device):
     epoch_loss = 0
-    epoch_accuracy = 0
+    sum_metrics = defaultdict(float)
 
     model.eval()
 
@@ -194,17 +239,25 @@ def evaluate(model, iterator, criterion, device):
             x = x.to(device)
             y = y.to(device)
 
-            y_pred = model(x)
-            loss = criterion(y_pred, y)
-            acc = binary_accuracy(y, y_pred)
+            pred = model(x)
+            loss = criterion(pred, y)
+            evals = {
+                "acc": accuracy(pred, y),
+                "f1": f1_score(pred, y),
+                "auroc": auroc(pred, y),
+                "precision": precision(pred, y),
+                "recall": recall(pred, y),
+            }
+            for k, v in evals.items():
+                sum_metrics[k] += v
 
             epoch_loss += loss.item()
             epoch_accuracy += acc
 
     epoch_loss /= len(iterator)
-    epoch_accuracy /= len(iterator)
+    avg_metrics = {k: v / len(iterator) for k, v in sum_metrics.items()}
 
-    return epoch_loss, epoch_accuracy
+    return epoch_loss, avg_metrics
 
 
 def epoch_time(start_time, end_time):
@@ -214,23 +267,23 @@ def epoch_time(start_time, end_time):
     return elapsed_mins, elapsed_secs
 
 
-best_valid_loss = float("inf")
+best_val = 0
 
 for epoch in range(config.num_train_epochs):
     start_time = time.time()
 
-    train_loss, train_acc = train(
+    train_loss, train_metrics = train(
         model, train_dataloader, optimizer, criterion, scheduler, device
     )
-    valid_loss, valid_acc = evaluate(model, test_dataloader, criterion, device)
+    valid_loss, val_metrics = evaluate(model, test_dataloader, criterion, device)
     if LOGGING:
-        wandb.log({"train_loss": train_loss}, commit=False)
-        wandb.log({"train_acc": train_acc}, commit=False)
-        wandb.log({"valid_loss": valid_loss}, commit=False)
-        wandb.log({"valid_acc": valid_acc}, commit=False)
+        wandb.log({"train.loss": train_loss}, commit=False)
+        wandb.log({"train": train_metrics}, commit=False)
+        wandb.log({"val.loss": valid_loss}, commit=False)
+        wandb.log({"val": val_metrics}, commit=False)
 
-    if valid_loss < best_valid_loss:
-        best_valid_loss = valid_loss
+    if val_metrics["acc"] > best_val:
+        best_val = val_metrics["acc"]
         torch.save(
             model.state_dict(), "/atlas2/u/jonxuxu/harvest-piles/results/resnet.pt"
         )
@@ -238,9 +291,10 @@ for epoch in range(config.num_train_epochs):
     end_time = time.time()
     epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
-    print(f"Epoch: {epoch+1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s")
-    print(f"\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:6.2f}%")
-    print(f"\tValid Loss: {valid_loss:.3f} | Valid Acc: {valid_acc*100:6.2f}%")
+    if accelerator.is_main_process:
+        print(f"Epoch: {epoch+1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s")
+        print(f"\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:6.2f}%")
+        print(f"\tValid Loss: {valid_loss:.3f} | Valid Acc: {valid_acc*100:6.2f}%")
 
     if LOGGING:
         wandb.log({"epoch": epoch}, commit=True)

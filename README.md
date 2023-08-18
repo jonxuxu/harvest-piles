@@ -1,2 +1,91 @@
-Satlas weights:
-https://github.com/allenai/satlas
+# HarvestNet: A Dataset for Detecting Smallholder Farming Activity Using Harvest Piles and Remote Sensing
+
+## HarvestNet 
+**HarvestNet** is a dataset for tracking farm activity by detecting harvest piles. This document introduces the procedures required for replicating the results in our paper.
+
+## Abstract
+Small farms contribute to a large share of the productive land in developing countries. In regions such as sub-Saharan Africa, where 80% of farms are small (under 2 ha in size), the task of mapping smallholder cropland is an important part of tracking sustainability measures such as crop productivity. However, the visually diverse and nuanced appearance of small farms has limited the effectiveness of traditional approaches to cropland mapping. Here we introduce a new approach based on the detection of harvest piles characteristic of many smallholder systems throughout the world. We present HarvestNet, a dataset for mapping the presence of farms in the Ethiopian regions of Tigray and Amhara during 2020-2023, collected using expert knowledge and satellite images, totaling 7k hand-labeled images and 2k ground collected labels. We also benchmark a set of baselines including SOTA models in remote sensing with our best models having around 80% classification performance on hand labelled data and 90%, 98% accuracy on ground truth data for Tigray, Amhara respectively. We also perform a visual comparison with a widely used pre-existing coverage map and show that our model detects an extra 56,621 hectares of cropland in Tigray. We conclude that remote sensing of harvest piles can contribute to more timely and accurate cropland assessments in food insecure regions.
+
+## Overview
+Our dataset consists of 7k labelled square SkySat images of size 512x512 pixels at a resolution of 0.5m per pixel. Each of these labelled images also correspond to a PlanetScope image of size 56x56 pixels at a resolution of 4.77m per pixel to cover the same geographic area of 256x256m. The labels are stored as `train.csv` and `test.csv`. Each row in the labelled dataset contains:
+
+| Field | Description |
+| ------------- | ------------- |
+| filename | Name of the corresponding SkySat and PlanetScope image |
+| lat_1 | Latitude of top left corner of area |
+| lon_1 | Longitude of top left corner of area |
+| lat_2 | Latitude of bottom right corner of area |
+| lon_2 | Longitude of bottom right corner of area|
+| activity | Label for whether the image contains harvest pile activity |
+| altitude | Alttidue of the center of the image, in meters |
+| lat_mean | Mean of lat_1 and lat_2 |
+| lon_mean | Mean of lon_1 and lon_2 |
+| year | Year of image capture |
+| month | Month of image capture |
+| day | Day of image capture |
+| group | Contiguous overlapping group the area belongs to. If no overlap, assign group = -1 |
+
+
+This dataset also includes ~150k unlabelled images SkySat images. They are of the same dimension with similar label format as our labelled dataset, without the `group` and `activity` fields defined. The labelled and unlabelled dataset are both included in 
+
+The **datasets** folder is not included in this repository. 
+Please download them from TODO [FigShare](https://google.com) and put them in the root directory of this repository as shown below.
+
+File path | Description
+```
+
+/datasets
+┣ 📂 skysat_images
+┃   ┗ 📜 1.tif
+┃   ┗ ...
+┃   ┗ 📜 xx.tif
+┣ 📂 planetscope_images
+┃   ┗ 📜 1.tif
+┃   ┗ ...
+┃   ┗ 📜 xx.tif
+
+/pretrains
+┣ 📂 swin_finetune
+┣ 📂 swin_pretrain
+┣ 📂 AMNA TODO: put your pretrains for SatMAE
+┣ 📂 AMNA TODO: put your pretrains for MOSAIKS
+┗ 📜 resnet.pt
+┗ 📜 satlas.pth
+
+/src
+┣ 📂 optim                  (custom optimizers)
+┣ 📂 preprocessing          (helper scripts for creating dataset)
+┣ 📂 scripts                (helper scripts for running jobs on HPC)
+
+┗ 📜 train.csv              (labels for training set)
+┗ 📜 test.csv               (labels for test set)
+┗ 📜 labels_all.csv         (labels for entire 150k dataset)
+
+┗ 📜 finetune_satlas.py     (main script for fine-tuning Satlas classifier)
+┗ 📜 swin_pretrain.py       (main script for pretraining Swin V2 MAE)
+┗ 📜 swin_finetune.py       (main script for finetuning Swin V2 classifier)
+┗ 📜 train_resnet.py        (main script for finetuning Resnet50 classifier)
+
+┗ 📜 config.py              (configurations for training scripts)
+┗ 📜 dataset.py             (functions for loading datasets)
+┗ 📜 eval_metrics.py        (functions for evaluation metrics)
+
+/notebooks
+┗ 📜 Dataset_Explorer.ipynb (notebook used to remove corrupted images from dataset)
+┗ 📜 Dataset_Maker.ipynb    (notebook used to remove corrupted images from dataset)
+┗ 📜 Dataset_Split.ipynb    (notebook used to remove corrupted images from dataset)
+┗ 📜 Image_Load.ipynb       (notebook used to remove corrupted images from dataset)
+┗ 📜 Labelling.ipynb        (notebook used by experts to label images)
+┗ 📜 Migration.ipynb        (notebook used to combine disjoint labels to one dataset)
+
+```
+
+## Environment setup
+Create and activate conda environment named ```harvest``` from our ```env.yaml```
+```sh
+conda env create -f env.yaml
+conda activate harvest
+```
+
+## Download data
+Due to size limit and license issues, the original SkySat images will need to be downloaded from the [TODO](https://google.com) offical website. The pre-processing scripts are also included in this repo. (TODO Richard: include preprocessing scripts, and link to how to download skysat images)

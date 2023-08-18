@@ -1,5 +1,5 @@
 notebooks/.ipynb_checkpoints/
-results/
+pretrains/
 __pycache__/
 wandb/
 weights/

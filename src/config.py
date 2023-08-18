@@ -21,6 +21,7 @@ class Config_Resnet:
             self.lr = 1e-3
 
         self.optimizer = "adam"
+        self.mixed_precision = "fp16"
 
         self.num_train_epochs = 20
 
