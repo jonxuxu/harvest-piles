@@ -20,10 +20,10 @@ class Config_Resnet:
         if self.scheduler == "one_cycle_lr":
             self.lr = 1e-3
 
-        self.optimizer = "adam"
+        self.optimizer = "madgrad"
         self.mixed_precision = "fp16"
 
-        self.num_train_epochs = 20
+        self.num_train_epochs = 30
 
         self.batch_size = 32
 
@@ -45,7 +45,7 @@ class Config_Satlas:
         self.seed = 2023
         self.train_split = 0.8
         self.criterion = "classification"
-        self.load_trained = True
+        self.load_trained = False
 
         self.optimizer = "adam"
         if self.optimizer == "adam":

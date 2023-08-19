@@ -86,15 +86,20 @@ swin_state_dict = {
 model.load_state_dict(swin_state_dict)
 
 # Freeze all layers
-# for param in model.parameters():
-#     param.requires_grad = False
+for param in model.parameters():
+    param.requires_grad = False
 
 # Add a FC layer
-num_features = model.head.out_features
+# num_features = model.head.out_features
 num_classes = 1
-model = torch.nn.Sequential(
-    model, torch.nn.Linear(num_features, num_classes), torch.nn.Sigmoid()
+# model = torch.nn.Sequential(
+#     model, torch.nn.Linear(num_features, num_classes), torch.nn.Sigmoid()
+# )
+num_features = model.head.in_features
+model.head = torch.nn.Sequential(
+    torch.nn.Linear(num_features, num_classes), torch.nn.Sigmoid()
 )
+
 # Load checkpoint
 if config.load_trained:
     model.load_state_dict(torch.load(config.trained_path))
@@ -144,9 +149,6 @@ criterion = criterion.to(device)
 # -----------------
 # TRAIN
 # -----------------
-print("Begin train")
-
-
 def train(model, iterator, optimizer, criterion, scheduler, device):
     epoch_loss = 0
 
@@ -198,6 +200,10 @@ def evaluate(model, iterator, criterion, device):
 
     return loss.item(), evals
 
+
+print("Begin train")
+print("Batch size:", config.batch_size)
+print("Steps per epoch:", len(train_dataloader))
 
 best_accuracy = 0
 

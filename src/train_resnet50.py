@@ -46,7 +46,7 @@ accelerator.init_trackers(
     },
 )
 
-LOGGING = False
+LOGGING = True
 if LOGGING:
     accelerator.init_trackers(
         config.wandb_project,
@@ -189,15 +189,12 @@ if accelerator.is_main_process:
     print("Begin train")
 
 
-def train(model, iterator, optimizer, criterion, scheduler, device):
+def train(model, iterator, optimizer, criterion, scheduler):
     epoch_loss = 0
     sum_metrics = defaultdict(float)
 
     model.train()
     for x, y, _ in iterator:
-        x = x.to(device)
-        y = y.to(device)
-
         optimizer.zero_grad()
 
         pred = model(x)
@@ -212,7 +209,7 @@ def train(model, iterator, optimizer, criterion, scheduler, device):
         for k, v in evals.items():
             sum_metrics[k] += v
 
-        loss.backward()
+        accelerator.backward(loss)
         optimizer.step()
         if config.scheduler == "one_cycle_lr":
             scheduler.step()
@@ -228,7 +225,7 @@ def train(model, iterator, optimizer, criterion, scheduler, device):
     return epoch_loss, avg_metrics
 
 
-def evaluate(model, iterator, criterion, device):
+def evaluate(model, iterator, criterion):
     epoch_loss = 0
     sum_metrics = defaultdict(float)
 
@@ -236,9 +233,6 @@ def evaluate(model, iterator, criterion, device):
 
     with torch.no_grad():
         for x, y, _ in iterator:
-            x = x.to(device)
-            y = y.to(device)
-
             pred = model(x)
             loss = criterion(pred, y)
             evals = {
@@ -252,7 +246,6 @@ def evaluate(model, iterator, criterion, device):
                 sum_metrics[k] += v
 
             epoch_loss += loss.item()
-            epoch_accuracy += acc
 
     epoch_loss /= len(iterator)
     avg_metrics = {k: v / len(iterator) for k, v in sum_metrics.items()}
@@ -269,13 +262,16 @@ def epoch_time(start_time, end_time):
 
 best_val = 0
 
+if LOGGING:
+    print("Batch size:", config.batch_size)
+    print("Batches per epoch:", len(train_dataloader))
 for epoch in range(config.num_train_epochs):
     start_time = time.time()
 
     train_loss, train_metrics = train(
-        model, train_dataloader, optimizer, criterion, scheduler, device
+        model, train_dataloader, optimizer, criterion, scheduler
     )
-    valid_loss, val_metrics = evaluate(model, test_dataloader, criterion, device)
+    valid_loss, val_metrics = evaluate(model, test_dataloader, criterion)
     if LOGGING:
         wandb.log({"train.loss": train_loss}, commit=False)
         wandb.log({"train": train_metrics}, commit=False)
@@ -284,6 +280,7 @@ for epoch in range(config.num_train_epochs):
 
     if val_metrics["acc"] > best_val:
         best_val = val_metrics["acc"]
+        unwrapped_model = accelerator.unwrap_model(model)
         torch.save(
             model.state_dict(), "/atlas2/u/jonxuxu/harvest-piles/results/resnet.pt"
         )
@@ -293,8 +290,12 @@ for epoch in range(config.num_train_epochs):
 
     if accelerator.is_main_process:
         print(f"Epoch: {epoch+1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s")
-        print(f"\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:6.2f}%")
-        print(f"\tValid Loss: {valid_loss:.3f} | Valid Acc: {valid_acc*100:6.2f}%")
+        print(
+            f"\tTrain Loss: {train_loss:.3f} | Train Acc: {train_metrics['acc'] * 100:6.2f}%"
+        )
+        print(
+            f"\tValid Loss: {valid_loss:.3f} | Valid Acc: {val_metrics['acc'] * 100:6.2f}%"
+        )
 
     if LOGGING:
         wandb.log({"epoch": epoch}, commit=True)

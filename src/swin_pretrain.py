@@ -39,7 +39,6 @@ from transformers.optimization import (
     get_cosine_with_hard_restarts_schedule_with_warmup,
 )
 
-# from mae.swin_mae import Swinv2ForMaskedImageModeling
 from transformers.utils import check_min_version
 
 from config import Swin_Pretrain

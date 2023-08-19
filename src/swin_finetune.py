@@ -90,7 +90,7 @@ class SwinClassifier(torch.nn.Module):
         super(SwinClassifier, self).__init__()
 
         self.swin_encoder = AutoModel.from_pretrained(config.pretrain_path)
-        # self.swin_encoder.requires_grad_(False)
+        self.swin_encoder.requires_grad_(False)
 
         self.classifier = torch.nn.Linear(self.swin_encoder.num_features, num_classes)
 
