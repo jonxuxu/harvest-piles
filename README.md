@@ -29,26 +29,25 @@ Our dataset consists of 7k labelled square SkySat images of size 512x512 pixels 
 This dataset also includes ~150k unlabelled images SkySat images. They are of the same dimension with similar label format as our labelled dataset, without the `group` and `activity` fields defined. The labelled and unlabelled dataset are both included in 
 
 The **datasets** folder is not included in this repository. 
-Please download them from TODO [FigShare](https://google.com) and put them in the root directory of this repository as shown below.
+Please download them from TODO [FigShare](https://figshare.com/s/df347b379d0e2e01f30c) and put them in the root directory of this repository as shown below.
 
 File path | Description
 ```
 
 /datasets
 ┣ 📂 skysat_images
-┃   ┗ 📜 1.tif
+┃   ┗ 📜 0.tif
 ┃   ┗ ...
 ┃   ┗ 📜 xx.tif
 ┣ 📂 planetscope_images
-┃   ┗ 📜 1.png
+┃   ┗ 📜 0.png
 ┃   ┗ ...
 ┃   ┗ 📜 xx.png
 
 /pretrains
 ┣ 📂 swin_finetune
 ┣ 📂 swin_pretrain
-┣ 📂 AMNA TODO: put your pretrains for SatMAE
-┣ 📂 AMNA TODO: put your pretrains for MOSAIKS
+┣ 📂 satmae_finetune
 ┗ 📜 resnet.pt
 ┗ 📜 satlas.pth
 
