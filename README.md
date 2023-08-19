@@ -28,7 +28,7 @@ Our dataset consists of 7k labelled square SkySat images of size 512x512 pixels 
 
 This dataset also includes ~150k unlabelled images SkySat images. They are of the same dimension with similar label format as our labelled dataset, without the `group` and `activity` fields defined. The labelled and unlabelled dataset are both included in 
 
-The **datasets** folder is not included in this repository. 
+The **datasets** folder and **weights** folder are not included in this repository. 
 Please download them from TODO [FigShare](https://google.com) and put them in the root directory of this repository as shown below.
 
 File path | Description
@@ -44,11 +44,11 @@ File path | Description
 ┃   ┗ ...
 ┃   ┗ 📜 xx.tif
 
-/pretrains
+/weights
 ┣ 📂 swin_finetune
 ┣ 📂 swin_pretrain
-┣ 📂 AMNA TODO: put your pretrains for SatMAE
-┣ 📂 AMNA TODO: put your pretrains for MOSAIKS
+┣ 📂 AMNA TODO: put your pretrains folder name for SatMAE
+┣ 📂 AMNA TODO: put your pretrains folder name for MOSAIKS
 ┗ 📜 resnet.pt
 ┗ 📜 satlas.pth
 
@@ -89,3 +89,5 @@ conda activate harvest
 
 ## Download data
 Due to size limit and license issues, the original SkySat images will need to be downloaded from the [TODO](https://google.com) offical website. The pre-processing scripts are also included in this repo. (TODO Richard: include preprocessing scripts, and link to how to download skysat images)
+
+We also provide checkpoints and finetuning data at TODO[FigShare](https://google.com) to run the finetuing and decoding directly.
