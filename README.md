@@ -55,31 +55,34 @@ File path | Description
 ┗ 📜 satlas.pth
 
 /src
-┣ 📂 optim                  (custom optimizers)
-┣ 📂 preprocessing          (helper scripts for creating dataset)
-┣ 📂 scripts                (helper scripts for running jobs on HPC)
+┣ 📂 optim                      (custom optimizers)
+┣ 📂 preprocessing              (helper scripts for creating dataset)
+┣ 📂 scripts                    (helper scripts for running jobs on HPC)
 
-┗ 📜 train.csv              (labels for training set)
-┗ 📜 test.csv               (labels for test set)
-┗ 📜 labels_all.csv         (labels for entire 150k dataset)
+┗ 📜 train.csv                  (labels for training set)
+┗ 📜 test.csv                   (labels for test set)
+┗ 📜 labels_all.csv             (labels for entire 150k dataset)
 
-┗ 📜 finetune_satlas.py     (main script for fine-tuning Satlas classifier)
-┗ 📜 swin_pretrain.py       (main script for pretraining Swin V2 MAE)
-┗ 📜 swin_finetune.py       (main script for finetuning Swin V2 classifier)
-┗ 📜 train_resnet.py        (main script for finetuning Resnet50 classifier)
+┗ 📜 finetune_satlas.py         (main script for fine-tuning Satlas classifier)
+┗ 📜 swin_pretrain.py           (main script for pretraining Swin V2 MAE)
+┗ 📜 swin_finetune.py           (main script for finetuning Swin V2 classifier)
+┗ 📜 train_resnet.py            (main script for finetuning Resnet50 classifier)
 
-┗ 📜 config.py              (configurations for training scripts)
-┗ 📜 dataset.py             (functions for loading datasets)
-┗ 📜 eval_metrics.py        (functions for evaluation metrics)
+┗ 📜 config.py                  (configurations for training scripts)
+┗ 📜 dataset.py                 (functions for loading datasets)
+┗ 📜 eval_metrics.py            (functions for evaluation metrics)
 
 /notebooks
-┗ 📜 Dataset_Explorer.ipynb (notebook used to remove corrupted images from dataset)
-┗ 📜 Dataset_Maker.ipynb    (notebook used to remove corrupted images from dataset)
-┗ 📜 Dataset_Split.ipynb    (notebook used to remove corrupted images from dataset)
-┗ 📜 Image_Load.ipynb       (notebook used to remove corrupted images from dataset)
-┗ 📜 Labelling.ipynb        (notebook used by experts to label images)
-┗ 📜 Migration.ipynb        (notebook used to combine disjoint labels to one dataset)
-
+┗ 📜 Dataset_Explorer.ipynb     (printing grid of positive images, plot histograms of dataset distribution)
+┗ 📜 Dataset_Maker.ipynb        (creating csv containing image labels from .tif images)
+┗ 📜 Dataset_Split.ipynb        (create dataset for MTurks, applying expert labels, overlap partitioning algorithm, train test split scripts)
+┗ 📜 Image_Load.ipynb           (remove corrupted images from dataset)
+┗ 📜 Labelling.ipynb            (used by experts to label images)
+┗ 📜 Migration.ipynb            (combine disjoint labels to one dataset)
+┗ 📜 PlanetScope_Download.ipynb (download images from PlanetScope)
+┗ 📜 SkySat_Clip_Bbox.ipynb     (create basic csv file for images in folder)
+┗ 📜 SkySat_Clip.ipynb          (divide SkySat captures into 512x512 px images)
+┗ 📜 SkySat_Download.ipynb      (download images from SkySat)
 ```
 
 ## Environment setup
