@@ -40,9 +40,9 @@ File path | Description
 ┃   ┗ ...
 ┃   ┗ 📜 xx.tif
 ┣ 📂 planetscope_images
-┃   ┗ 📜 1.tif
+┃   ┗ 📜 1.png
 ┃   ┗ ...
-┃   ┗ 📜 xx.tif
+┃   ┗ 📜 xx.png
 
 /pretrains
 ┣ 📂 swin_finetune
