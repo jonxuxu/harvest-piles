@@ -32,7 +32,7 @@ Our dataset consists of 7k labelled square SkySat images of size 512x512 pixels 
 This dataset also includes ~150k unlabelled images SkySat images. They are of the same dimension with similar label format as our labelled dataset, without the `group` and `activity` fields defined. The labelled and unlabelled dataset are both included in 
 
 The **datasets** folder and **weights** folder are not included in this repository. 
-Please download them from TODO [FigShare](https://figshare.com/s/df347b379d0e2e01f30c) and put them in the root directory of this repository as shown below.
+Please download the dataset from [FigShare](https://figshare.com/s/df347b379d0e2e01f30c) and put them in the root directory of this repository as shown below. We also provide the pretrained weights for our models, which are also hosted on [FigShare]()
 
 File path | Description
 ```
@@ -46,6 +46,9 @@ File path | Description
 ┃   ┗ 📜 0.png
 ┃   ┗ ...
 ┃   ┗ 📜 xx.png
+┗ 📜 train.csv                  (labels for training set)
+┗ 📜 test.csv                   (labels for test set)
+┗ 📜 labels_all.csv             (labels for entire 150k dataset)
 
 /weights
 ┣ 📂 swin_finetune
@@ -58,11 +61,6 @@ File path | Description
 ┣ 📂 optim                      (custom optimizers)
 ┣ 📂 preprocessing              (helper scripts for creating dataset)
 ┣ 📂 scripts                    (helper scripts for running jobs on HPC)
-
-┗ 📜 train.csv                  (labels for training set)
-┗ 📜 test.csv                   (labels for test set)
-┗ 📜 labels_all.csv             (labels for entire 150k dataset)
-
 ┗ 📜 finetune_satlas.py         (main script for fine-tuning Satlas classifier)
 ┗ 📜 swin_pretrain.py           (main script for pretraining Swin V2 MAE)
 ┗ 📜 swin_finetune.py           (main script for finetuning Swin V2 classifier)
