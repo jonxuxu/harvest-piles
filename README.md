@@ -1,5 +1,8 @@
 # HarvestNet: A Dataset for Detecting Smallholder Farming Activity Using Harvest Piles and Remote Sensing
 
+![Pile Examples](pile-examples.png)
+Examples of harvest piles circled in red
+
 ## HarvestNet 
 **HarvestNet** is a dataset for tracking farm activity by detecting harvest piles. This document introduces the procedures required for replicating the results in our paper.
 

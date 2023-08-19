@@ -90,15 +90,15 @@ for param in model.parameters():
     param.requires_grad = False
 
 # Add a FC layer
-# num_features = model.head.out_features
+num_features = model.head.out_features
 num_classes = 1
-# model = torch.nn.Sequential(
-#     model, torch.nn.Linear(num_features, num_classes), torch.nn.Sigmoid()
-# )
-num_features = model.head.in_features
-model.head = torch.nn.Sequential(
-    torch.nn.Linear(num_features, num_classes), torch.nn.Sigmoid()
+model = torch.nn.Sequential(
+    model, torch.nn.Linear(num_features, num_classes), torch.nn.Sigmoid()
 )
+# num_features = model.head.in_features
+# model.head = torch.nn.Sequential(
+#     torch.nn.Linear(num_features, num_classes), torch.nn.Sigmoid()
+# )
 
 # Load checkpoint
 if config.load_trained:
