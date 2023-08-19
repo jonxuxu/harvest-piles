@@ -88,4 +88,9 @@ conda activate harvest
 ```
 
 ## Download data
-Due to size limit and license issues, the original SkySat images will need to be downloaded from the [TODO](https://google.com) offical website. The pre-processing scripts are also included in this repo. (TODO Richard: include preprocessing scripts, and link to how to download skysat images)
+Due to size limit and license issues, the original SkySat images will need to be downloaded from the [Planet Explorer](https://www.planet.com/explorer/). The pre-processing scripts are also included in this repo.
+
+1. SkySat_Download.ipynb: Notebook to download specified SkySat assets. Please refer to the Planet SDK for Python [repo](https://github.com/planetlabs/planet-client-python/tree/main) to set up your Planet account.
+2. SkySat_Clip.ipynb: Notebook to clip given SkySat Collects into 512x512 px images and delete images that are partially empty.
+3. SkySat_Clip_Bbox.ipynb: Notebook to extract bounding box coordinates of each SkySat clipped image to be used to download PlanetScope images.
+4. PlanetScope_Download.ipynb: Notebook to download PlanetScope monthly basemaps using Google Earth Engine. Please refer to this NICFI access [page](https://developers.planet.com/docs/integrations/gee/nicfi/) to setup your Google Earth Engine account to gain access to collection of interest.
