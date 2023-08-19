@@ -29,26 +29,25 @@ Our dataset consists of 7k labelled square SkySat images of size 512x512 pixels 
 This dataset also includes ~150k unlabelled images SkySat images. They are of the same dimension with similar label format as our labelled dataset, without the `group` and `activity` fields defined. The labelled and unlabelled dataset are both included in 
 
 The **datasets** folder and **weights** folder are not included in this repository. 
-Please download them from TODO [FigShare](https://google.com) and put them in the root directory of this repository as shown below.
+Please download them from TODO [FigShare](https://figshare.com/s/df347b379d0e2e01f30c) and put them in the root directory of this repository as shown below.
 
 File path | Description
 ```
 
 /datasets
 ┣ 📂 skysat_images
-┃   ┗ 📜 1.tif
+┃   ┗ 📜 0.tif
 ┃   ┗ ...
 ┃   ┗ 📜 xx.tif
 ┣ 📂 planetscope_images
-┃   ┗ 📜 1.tif
+┃   ┗ 📜 0.png
 ┃   ┗ ...
-┃   ┗ 📜 xx.tif
+┃   ┗ 📜 xx.png
 
 /weights
 ┣ 📂 swin_finetune
 ┣ 📂 swin_pretrain
-┣ 📂 AMNA TODO: put your pretrains folder name for SatMAE
-┣ 📂 AMNA TODO: put your pretrains folder name for MOSAIKS
+┣ 📂 satmae_finetune
 ┗ 📜 resnet.pt
 ┗ 📜 satlas.pth
 
@@ -88,6 +87,9 @@ conda activate harvest
 ```
 
 ## Download data
-Due to size limit and license issues, the original SkySat images will need to be downloaded from the [TODO](https://google.com) offical website. The pre-processing scripts are also included in this repo. (TODO Richard: include preprocessing scripts, and link to how to download skysat images)
+Due to size limit and license issues, the original SkySat images will need to be downloaded from the [Planet Explorer](https://www.planet.com/explorer/). The pre-processing scripts are also included in this repo.
 
-We also provide checkpoints and finetuning data at TODO[FigShare](https://google.com) to run the finetuing and decoding directly.
+1. SkySat_Download.ipynb: Notebook to download specified SkySat assets. Please refer to the Planet SDK for Python [repo](https://github.com/planetlabs/planet-client-python/tree/main) to set up your Planet account.
+2. SkySat_Clip.ipynb: Notebook to clip given SkySat Collects into 512x512 px images and delete images that are partially empty.
+3. SkySat_Clip_Bbox.ipynb: Notebook to extract bounding box coordinates of each SkySat clipped image to be used to download PlanetScope images.
+4. PlanetScope_Download.ipynb: Notebook to download PlanetScope monthly basemaps using Google Earth Engine. Please refer to this NICFI access [page](https://developers.planet.com/docs/integrations/gee/nicfi/) to setup your Google Earth Engine account to gain access to collection of interest.
