@@ -29,7 +29,7 @@ Our dataset consists of 7k labelled square SkySat images of size 512x512 pixels 
 | group | Contiguous overlapping group the area belongs to. If no overlap, assign group = -1 |
 
 
-This dataset also includes ~150k unlabelled images SkySat images. They are of the same dimension with similar label format as our labelled dataset, without the `group` and `activity` fields defined. The labelled and unlabelled dataset are both included in 
+This dataset also includes ~150k unlabelled images SkySat images. They are of the same dimension with similar label format as our labelled dataset, without the `group` and `activity` fields defined. The labelled and unlabelled dataset are both included in /skysat_images.
 
 The **datasets** folder and **weights** folder are not included in this repository. 
 Please download the dataset from [FigShare](https://figshare.com/s/df347b379d0e2e01f30c) and put them in the root directory of this repository as shown below. We also provide the pretrained weights for our models, which are also hosted on [FigShare]()
